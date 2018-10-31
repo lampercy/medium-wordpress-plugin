@@ -8,8 +8,6 @@ include_once(MEDIUM_PLUGIN_DIR . "lib/medium-user.php");
 include_once(MEDIUM_PLUGIN_DIR . "lib/medium-view.php");
 
 define("NO_PUBLICATION", -1);
-define("API_TIMEOUT", -2);
-define("API_EXCEEDED_CAPACITY", -3);
 
 class Medium_Admin {
 
@@ -636,15 +634,6 @@ class Medium_Admin {
    */
   private static function _get_user_integration_data() {
     global $wpdb;
-    $usermeta_query = "SELECT user_id, meta_value AS medium_user FROM $wpdb->usermatea AS um WHERE um.meta_key = 'medium_user'";
-
-    $user_meta = $wpdb->get_results($usermeta_query);
-    $user_ids = array();
-    foreach($user_meta as $user) {
-      $user_ids_array[] = $user->user_id;
-    }
-    $ids = join(',', $user_ids);
-
     $user_integrations = $wpdb->get_results("
       SELECT u.ID as user_id, u.display_name AS name, um.medium_user
       FROM $wpdb->users AS u
@@ -653,7 +642,6 @@ class Medium_Admin {
         WHERE um.meta_key = 'medium_user'
       ) AS um
       ON u.ID = um.user_id
-      WHERE u.ID in ($ids)
     ");
 
     $unlinked_accounts = array();
@@ -764,14 +752,6 @@ class Medium_Admin {
     }
     $tags = array_values(array_unique(array_merge($slugs, $tags)));
 
-    // pull in categories as tags
-    $categories = get_the_category($post->ID);
-    $cats = array();
-    foreach($categories as $category){
-        $cats[] = $category->name;
-    }
-    $tags = array_values(array_unique(array_merge($cats, $tags)));
-
     if (class_exists('CoAuthors_Guest_Authors')) {
       // Handle guest-authors if the CoAuthors Plus plugin is installed.
       $coauthors = get_coauthors($post->ID);
@@ -782,24 +762,12 @@ class Medium_Admin {
       }
     }
 
-    // API does not cross post when missing a title. Set as "untitled"
-    // if the post is missing a post title.
-    if (!isset($post->post_title) || strlen($post->post_title) === 0) {
-      $post->post_title = "untitled";
-    }
-
-    $blog_name = get_bloginfo('name');
-    if (empty($blog_name)) {
-      $site_url = site_url();
-      $blog_name = str_replace(parse_url($site_url, PHP_URL_SCHEME) . '://', '', $site_url);
-    }
-
     $permalink = get_permalink($post->ID);
     $content = Medium_View::render("content-rendered-post", array(
       "title" => strip_tags($post->post_title),
       "content" => self::_prepare_content($post),
       "cross_link" => $medium_post->cross_link == "yes",
-      "site_name" => $blog_name,
+      "site_name" => get_bloginfo('name'),
       "permalink" => $permalink,
       "byline" => $medium_post->byline_name
     ), true);
@@ -815,14 +783,6 @@ class Medium_Admin {
       "publishedAt" => mysql2date('c', isset($post->post_date_gmt) ? $post->post_date_gmt : $post->post_date),
       "notifyFollowers" => $medium_post->follower_notification == "yes"
     );
-    // cannot compare wordpress time to medium time
-    // if the $post_date is within 15 minutes, do not
-    // use 'publishedAt', just use the server time
-    // fixes https://github.com/Medium/medium-wordpress-plugin/issues/106
-    $post_date_ts = mysql2date('U', isset($post->post_date_gmt) ? $post->post_date_gmt : $post->post_date);
-    if (abs(mktime() - mysql2date('U')) < 900) {
-      unset($body["publishedAt"]);
-    }
     $data = json_encode($body);
 
     if ($medium_post->publication_id != NO_PUBLICATION) {
@@ -845,14 +805,11 @@ class Medium_Admin {
       );
 
       // Retry once for timeout or server error
-      if ($e->getCode() == API_TIMEOUT) {
+      if ($e->getCode() == -2) {
         error_log("RETRYING POST $post->ID '$post->post_title' due to timeout, delaying...");
         sleep(5);
       } else if (in_array($e->getCode(), $retry_response_codes)) {
         error_log("RETRYING POST $post->ID '$post->post_title' due to response code $code, delaying...");
-        sleep(5);
-      } else if ($e->getCode() == API_EXCEEDED_CAPACITY) {
-        error_log("RETRYING POST $post->ID '$post->post_title' due to table capacity, delaying...");
         sleep(5);
       } else {
         throw $e;
@@ -1140,10 +1097,7 @@ class Medium_Admin {
       $error_code = $response->get_error_code();
       error_log("WP ERROR: $message ($error_code)");
       if ($error_code == "http_request_failed" && strpos($message, "timed out") !== false) {
-        throw new Exception($message, API_TIMEOUT);
-      }
-      if ($error_code == "http_request_failed" && strpos($message, "provisioned throughput for the table was exceeded") !== false) {
-        throw new Exception($message, API_EXCEEDED_CAPACITY);
+        throw new Exception($message, -2); // our custom code for timeouts
       }
       throw new Exception($message, $code);
     }

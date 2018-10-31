@@ -1,8 +1,8 @@
 ﻿=== Medium ===
-Contributors: mediumdotcom, majelbstoat, huckphin, amyquispe
+Contributors: mediumdotcom, majelbstoat, huckphin
 Tags:  medium, medium auto publish, publish post to medium, medium publishing, post to medium, social media auto publish, social media publishing, social network auto publish, social media, social network
 Requires at least: 3.3
-Tested up to: 4.5.3
+Tested up to: 4.4
 Stable tag: trunk
 License: Apache
 
@@ -10,13 +10,11 @@ Publish posts automatically to a Medium profile.
 
 == Description ==
 
-**Warning:** This plugin is no longer supported or maintained by Medium. For all issues, please refer to the [community support forum](https://wordpress.org/support/plugin/medium) and Medium's [API documentation](https://github.com/Medium/medium-api-docs).
-
 Medium lets you publish posts automatically to a Medium profile.
 
 = About =
 
-The Medium plugin was originally developed by [Medium](https://medium.com/ "medium.com").
+Medium is developed and maintained by [Medium](https://medium.com/ "medium.com"). For support, contact us at [yourfriends@medium.com](mailto://yourfriends@medium.com).
 
 == Installation ==
 
