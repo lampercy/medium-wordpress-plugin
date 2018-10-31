@@ -734,6 +734,9 @@ class Medium_Admin {
    * Creates a post on Medium.
    */
   public static function cross_post($post, $medium_post, $medium_user) {
+    $post->post_content = qtranxf_use_language('en', $post->post_content, false, true);
+    $post->post_title = qtranxf_use_language('en', $post->post_title, false, true);
+
     $tag_data = wp_get_post_terms($post->ID, array("post_tag", "slug"));
     // Use wp_get_post_tags() if WP_Error or empty array returned
     if (!count($tag_data) || is_wp_error($tag_data)) {
