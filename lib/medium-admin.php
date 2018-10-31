@@ -765,7 +765,7 @@ class Medium_Admin {
     $tags = array_values(array_unique(array_merge($slugs, $tags)));
 
     // pull in categories as tags
-    $categories = wp_get_the_category($post->ID);
+    $categories = get_the_category($post->ID);
     $cats = array();
     foreach($categories as $category){
         $cats[] = $category->name;
